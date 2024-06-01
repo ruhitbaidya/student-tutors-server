@@ -49,19 +49,22 @@ async function run() {
     //user admin student role check
     app.get("/checkRole/:email", async(req, res)=>{
         const email = req.params.email;
+        console.log("email",email)
+        const finds = {"user.email": email}
         if(!email){
             return res.send({message: "Unauthorize Use"})
         }
         if(email){
-            const roles = await usercollection.findOne({email});
+            const roles = await usercollection.findOne(finds);
+            console.log(roles)
             if(roles){
-                if(roles.role === "admin"){
+                if(roles.user.role === "admin"){
                     return res.send({roles : "admin"})
                 }
-                if(roles.role === "tutor"){
+                if(roles.user.role === "tutor"){
                     return res.send({roles : "tutor"})
                 }
-                if(roles.role === "student"){
+                if(roles.user.role === "student"){
                     return res.send({roles : "student"})
                 }
             }
@@ -71,8 +74,10 @@ async function run() {
     //set user role
     app.post("/user-role-set", async(req, res)=>{
         const user = req.body;
-
-        const existUser = await usercollection.findOne({email : user.email})
+        console.log(user)
+        const fins = {"user.email" : user.email}
+        const existUser = await usercollection.findOne(fins)
+        console.log(existUser)
         if(existUser){
             return res.send({message : "This User Already Exist"})
         }else{
