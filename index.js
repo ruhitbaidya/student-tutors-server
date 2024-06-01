@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.PAYMENT_SECRATE);
 const jwt = require("jsonwebtoken")
 const app = express();
@@ -30,6 +30,7 @@ async function run() {
 
     // user collection
     const usercollection = client.db("Student_tutorsDB").collection("alluser");
+    const sessioncollection = client.db("Student_tutorsDB").collection("sessionCreate");
 
     // create jwt
     app.post("/jwtCreate", (req, res)=>{
@@ -38,6 +39,19 @@ async function run() {
         res.send({token})
     })
 
+    // check role middleware
+    const roleChecker = async(req, res, next)=>{
+        const {email} = req.decode;
+        const query = {"user.email" : email}
+        const userFind = await usercollection.findOne(query)
+        if(!userFind){
+          res.send({message : "invalid user"})
+        }
+        if(userFind){
+          req.user = userFind.user.role;
+          next()
+        }
+    }
     // user authorization check
     const verifytoken = (req, res, next)=>{
         const token = JSON.parse(req.headers.authorization);
@@ -46,6 +60,7 @@ async function run() {
           return res.send({message : "UnAuthorize User"}).status(401)
         }
 
+        // verify tokens
         jwt.verify(datas[2], process.env.TOKEN_SECRATE, (err, decode)=>{
           if(err){
             return res.send({message : "tim UnAuthorize User"}).status(403)
@@ -64,18 +79,58 @@ async function run() {
       res.send("Hello World!");
     });
 
+    // create session router
+    app.post("/createSession", verifytoken, roleChecker, async(req, res)=>{
+        // console.log(req.body)
+        // console.log(req.user)
+        const data = req.body;
+        const role = req.user;
+        if(role === "tutor"){
+          const result = await sessioncollection.insertOne(data)
+          res.send(result)
+        }else{
+          return res.send({message : "You Can Not Create Any Session"})
+        }
+    })
 
+    // get session tutor
+    app.get("/sessionfind/:email", verifytoken, roleChecker, async(req, res)=>{
+          const findrule = req.user;
+          const emails = req.params.email;
+          const searchTutor = {
+            tutorEmail : emails,
+            $or:[
+              {status : "approve"},
+              {status : "rejected"}
+            ]
+          }
+          if(findrule === "tutor"){
+              const result = await sessioncollection.find(searchTutor).toArray()
+              console.log(result)
+              res.send(result);
+          }else{
+            return res.send({message : "Invalid User"})
+          }
+    })
+
+    app.patch("/statusChange/:id", verifytoken, roleChecker, async(req, res)=>{
+            const roles = req.user;
+            const ids = {_id : new ObjectId(req.params.id)}
+            const setData = {$set : {status : "pending"}}
+            if(roles === "tutor"){
+              const result = await sessioncollection.updateOne(ids, setData);
+              res.send(result)
+            }
+    })
     //user admin student role check
     app.get("/checkRole/:email", verifytoken, async(req, res)=>{
         const email = req.params.email;
-        console.log("email",email)
         const finds = {"user.email": email}
         if(!email){
             return res.send({message: "min Unauthorize Use"}).status(401)
         }
         if(email){
             const roles = await usercollection.findOne(finds);
-            console.log(roles)
             if(roles){
                 if(roles.user.role === "admin"){
                     return res.send({roles : "admin"})
@@ -93,10 +148,10 @@ async function run() {
     //set user role
     app.post("/user-role-set", async(req, res)=>{
         const user = req.body;
-        console.log(user)
+    
         const fins = {"user.email" : user.email}
         const existUser = await usercollection.findOne(fins)
-        console.log(existUser)
+   
         if(existUser){
             return res.send({message : "This User Already Exist"}).status(405)
         }else{
