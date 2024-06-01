@@ -1,12 +1,11 @@
-const express = require("express");
 require("dotenv").config();
+const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
-
-
 const stripe = require("stripe")(process.env.PAYMENT_SECRATE);
 const app = express();
-const serverport = process.env.PORT || 5000;
+
+const port = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
@@ -31,6 +30,9 @@ async function run() {
     );
 
     // payment router
+    app.get("/", (req, res) => {
+      res.send("Hello World!");
+    });
 
     app.post("/create-payment-intent", async (req, res) => {
       const price = req.body;
@@ -56,6 +58,7 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.listen(5000, () => {
+app.listen(5000, (err) => {
+  console.dir(err);
   console.log(`This server is start ${5000}`);
 });
