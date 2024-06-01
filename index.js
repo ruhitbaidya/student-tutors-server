@@ -39,7 +39,26 @@ async function run() {
     })
 
     // user authorization check
-    app.post("/verifyuser")
+    const verifytoken = (req, res, next)=>{
+        const token = JSON.parse(req.headers.authorization);
+        const datas = token.split(" ")
+        if(!datas[2]){
+          return res.send({message : "UnAuthorize User"}).status(401)
+        }
+
+        jwt.verify(datas[2], process.env.TOKEN_SECRATE, (err, decode)=>{
+          if(err){
+            return res.send({message : "tim UnAuthorize User"}).status(403)
+          }
+          if(datas[1] === decode.email){
+            req.decode = decode;
+            next()
+          }else{
+            return res.send({message : "UnAuthorize User"}).status(403)
+          }
+        })
+        
+    }
     // Test router
     app.get("/", (req, res) => {
       res.send("Hello World!");
@@ -47,12 +66,12 @@ async function run() {
 
 
     //user admin student role check
-    app.get("/checkRole/:email", async(req, res)=>{
+    app.get("/checkRole/:email", verifytoken, async(req, res)=>{
         const email = req.params.email;
         console.log("email",email)
         const finds = {"user.email": email}
         if(!email){
-            return res.send({message: "Unauthorize Use"})
+            return res.send({message: "min Unauthorize Use"}).status(401)
         }
         if(email){
             const roles = await usercollection.findOne(finds);
@@ -79,7 +98,7 @@ async function run() {
         const existUser = await usercollection.findOne(fins)
         console.log(existUser)
         if(existUser){
-            return res.send({message : "This User Already Exist"})
+            return res.send({message : "This User Already Exist"}).status(405)
         }else{
             const result = await usercollection.insertOne(user);
             res.send(result)
