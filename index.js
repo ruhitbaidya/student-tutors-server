@@ -3,9 +3,8 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const stripe = require("stripe")(process.env.PAYMENT_SECRATE);
+const jwt = require("jsonwebtoken")
 const app = express();
-
-const port = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
@@ -29,6 +28,12 @@ async function run() {
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
 
+    app.post("/jwtCreate", (req, res)=>{
+        const email = req.body;
+        const token = jwt.sign(email, process.env.TOKEN_SECRATE, {expiresIn : "1hr"})
+        res.send({token})
+    })
+
     // payment router
     app.get("/", (req, res) => {
       res.send("Hello World!");
@@ -36,9 +41,7 @@ async function run() {
 
     app.post("/create-payment-intent", async (req, res) => {
       const price = req.body;
-      console.log(price);
       const money = parseInt(price.items * 100);
-
       const paymentIntent = await stripe.paymentIntents.create({
         amount: money,
         currency: "usd",
