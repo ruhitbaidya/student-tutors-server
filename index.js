@@ -114,6 +114,10 @@ async function run() {
           }
     })
 
+    // tutor metrial router add show
+    app.get("/metrialuploadshow/:email", verifytoken, async(req, res)=>{
+          const emails = req.params.email;
+    })
     //send again reject request
     app.patch("/statusChange/:id", verifytoken, roleChecker, async(req, res)=>{
             const roles = req.user;
