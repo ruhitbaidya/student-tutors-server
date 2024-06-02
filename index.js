@@ -31,6 +31,7 @@ async function run() {
     // user collection
     const usercollection = client.db("Student_tutorsDB").collection("alluser");
     const sessioncollection = client.db("Student_tutorsDB").collection("sessionCreate");
+    const metarialcollection = client.db("Student_tutorsDB").collection("metrialUpload");
 
     // create jwt
     app.post("/jwtCreate", (req, res)=>{
@@ -113,6 +114,7 @@ async function run() {
           }
     })
 
+    //send again reject request
     app.patch("/statusChange/:id", verifytoken, roleChecker, async(req, res)=>{
             const roles = req.user;
             const ids = {_id : new ObjectId(req.params.id)}
@@ -144,6 +146,32 @@ async function run() {
             }
         }
     })
+
+    //only tutor approve session view this link
+
+    app.get("/TutorOnlyApprove/:email", verifytoken, roleChecker, async(req, res)=>{
+        const emails = req.params.email;
+        const roles = req.user;
+        if(roles === "tutor"){
+          const query = {$and : [{tutorEmail : emails},{status : "approve"}]};
+          const result = await sessioncollection.find(query).toArray();
+          res.send(result);
+        }
+    })
+
+
+    //upload Meterial
+    app.post("/uploadMetrial", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      const datas = req.body;
+      if(roles === "tutor"){
+          const result = await metarialcollection.insertOne(datas);
+          return res.send(result)
+      }else{
+        return res.send({message : "unauthorize user"})
+      }
+    })
+
 
     //set user role
     app.post("/user-role-set", async(req, res)=>{
