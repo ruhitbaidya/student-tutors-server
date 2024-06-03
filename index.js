@@ -228,6 +228,7 @@ async function run() {
         }
       })
 
+      // update sesstion
       app.post("/updateadminsession/:id",verifytoken, roleChecker, async(req,res)=>{
           const roles = req.user;
           const ids = {_id : new ObjectId(req.params.id)}
@@ -243,6 +244,16 @@ async function run() {
           }
       })
      
+      app.get("/getallmetrial", verifytoken, roleChecker, async(req ,res)=>{
+          const roles = req.user;
+          if(roles === "admin"){
+            const result = await metarialcollection.find().toArray();
+            return res.send(result);
+
+          }else{
+            return;
+          }
+      })
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
@@ -304,7 +315,7 @@ async function run() {
         const ids = req.params.id;
         const query = { _id: new ObjectId(ids) };
         console.log(roles, query);
-        if (roles === "tutor") {
+        if (roles === "tutor" || roles === "admin") {
           const result = await metarialcollection.deleteOne(query);
           return res.send(result);
         } else {
