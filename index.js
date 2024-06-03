@@ -135,6 +135,74 @@ async function run() {
           return;
         }
     })
+
+    //user search router
+    app.get("/userSearch/:searchKeys", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      console.log(req.params.searchKeys)
+      const query = {$or : [
+        {"user.email" : {$regex : req.params.searchKeys, $options : "i"}},
+        {"user.name" : {$regex : req.params.searchKeys, $options : "i"}}
+      ]}
+      if(roles === "admin"){
+        const result = await usercollection.find(query).toArray();
+        return res.send(result)
+      }else{
+        return;
+      }
+    })
+
+    // all tutor name 
+    app.get("/allTutorSession/:statusText", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      console.log()    
+      const query = {status : req.params.statusText}       
+      if(roles === "admin"){
+        const result = await sessioncollection.find(query).toArray();
+        res.send(result)
+      }
+
+    })
+
+       // change session status
+       app.patch("/sessionstatuschange/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const text = req.body;
+        const ids = {_id : new ObjectId(req.params.id)};
+        const query = {
+          $set : {registerFree : text.price},
+          $set : {status : "approve"}
+        }
+        if(roles === "admin"){
+          const result = await sessioncollection.updateOne(ids, query);
+          res.send(result)
+        }
+      })
+
+      // handel react list status
+      app.patch("/rejectlist/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const ids = {_id : new ObjectId(req.params.id)};
+        const query = {
+          $set : {status : "rejected"}
+        }
+        if(roles === "admin"){
+          const result = await sessioncollection.updateOne(ids, query);
+          res.send(result)
+        }
+      })
+
+      app.patch("/pedndinglist/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const ids = {_id : new ObjectId(req.params.id)};
+        const query = {
+          $set : {status : "pending"}
+        }
+        if(roles === "admin"){
+          const result = await sessioncollection.updateOne(ids, query);
+          res.send(result)
+        }
+      })
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
