@@ -110,6 +110,7 @@ async function run() {
     });
     // -------------------- start admin rotuer -------------------
 
+    // all user get
     app.get("/getAllUser", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
       if (roles === "admin") {
@@ -120,6 +121,20 @@ async function run() {
       }
     });
 
+    // user role change
+    app.patch("/changeUserRole/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const ids = {_id : new ObjectId(req.params.id)}
+        const query = {
+          $set : {"user.role" : req.body.role}
+        }
+        if(roles === "admin"){
+            const result = await usercollection.updateOne(ids, query);
+            return res.send(result)
+        }else{
+          return;
+        }
+    })
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
