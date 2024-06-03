@@ -104,6 +104,11 @@ async function run() {
       }
     });
 
+    app.get("/getForeHome", async (req, res) => {
+      const ids = { status: "approve" };
+      const result = await sessioncollection.find(ids).limit(6).toArray();
+      res.send(result);
+    });
     // Test router
     app.get("/", (req, res) => {
       res.send("Hello World!");
@@ -122,138 +127,173 @@ async function run() {
     });
 
     // user role change
-    app.patch("/changeUserRole/:id", verifytoken, roleChecker, async(req, res)=>{
+    app.patch(
+      "/changeUserRole/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
         const roles = req.user;
-        const ids = {_id : new ObjectId(req.params.id)}
+        const ids = { _id: new ObjectId(req.params.id) };
         const query = {
-          $set : {"user.role" : req.body.role}
-        }
-        if(roles === "admin"){
-            const result = await usercollection.updateOne(ids, query);
-            return res.send(result)
-        }else{
+          $set: { "user.role": req.body.role },
+        };
+        if (roles === "admin") {
+          const result = await usercollection.updateOne(ids, query);
+          return res.send(result);
+        } else {
           return;
         }
-    })
+      }
+    );
 
     //user search router
-    app.get("/userSearch/:searchKeys", verifytoken, roleChecker, async(req, res)=>{
-      const roles = req.user;
-      console.log(req.params.searchKeys)
-      const query = {$or : [
-        {"user.email" : {$regex : req.params.searchKeys, $options : "i"}},
-        {"user.name" : {$regex : req.params.searchKeys, $options : "i"}}
-      ]}
-      if(roles === "admin"){
-        const result = await usercollection.find(query).toArray();
-        return res.send(result)
-      }else{
-        return;
+    app.get(
+      "/userSearch/:searchKeys",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        console.log(req.params.searchKeys);
+        const query = {
+          $or: [
+            { "user.email": { $regex: req.params.searchKeys, $options: "i" } },
+            { "user.name": { $regex: req.params.searchKeys, $options: "i" } },
+          ],
+        };
+        if (roles === "admin") {
+          const result = await usercollection.find(query).toArray();
+          return res.send(result);
+        } else {
+          return;
+        }
       }
-    })
+    );
 
-    // all tutor name 
-    app.get("/allTutorSession/:statusText", verifytoken, roleChecker, async(req, res)=>{
-      const roles = req.user;
-      console.log()    
-      const query = {status : req.params.statusText}       
-      if(roles === "admin"){
-        const result = await sessioncollection.find(query).toArray();
-        res.send(result)
+    // all tutor name
+    app.get(
+      "/allTutorSession/:statusText",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        console.log();
+        const query = { status: req.params.statusText };
+        if (roles === "admin") {
+          const result = await sessioncollection.find(query).toArray();
+          res.send(result);
+        }
       }
+    );
 
-    })
-
-       // change session status
-       app.patch("/sessionstatuschange/:id", verifytoken, roleChecker, async(req, res)=>{
+    // change session status
+    app.patch(
+      "/sessionstatuschange/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
         const roles = req.user;
         const text = req.body;
-        const ids = {_id : new ObjectId(req.params.id)};
+        const ids = { _id: new ObjectId(req.params.id) };
         const query = {
-          $set : {registerFree : text.price},
-          $set : {status : "approve"}
-        }
-        if(roles === "admin"){
+          $set: { registerFree: text.price },
+          $set: { status: "approve" },
+        };
+        if (roles === "admin") {
           const result = await sessioncollection.updateOne(ids, query);
-          res.send(result)
+          res.send(result);
         }
-      })
+      }
+    );
 
-      // handel react list status
-      app.patch("/rejectlist/:id", verifytoken, roleChecker, async(req, res)=>{
+    // handel react list status
+    app.patch("/rejectlist/:id", verifytoken, roleChecker, async (req, res) => {
+      const roles = req.user;
+      const ids = { _id: new ObjectId(req.params.id) };
+      const query = {
+        $set: { status: "rejected" },
+      };
+      if (roles === "admin") {
+        const result = await sessioncollection.updateOne(ids, query);
+        res.send(result);
+      }
+    });
+    // others router to panding list
+    app.patch(
+      "/pedndinglist/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
         const roles = req.user;
-        const ids = {_id : new ObjectId(req.params.id)};
+        const ids = { _id: new ObjectId(req.params.id) };
         const query = {
-          $set : {status : "rejected"}
-        }
-        if(roles === "admin"){
+          $set: { status: "pending" },
+        };
+        if (roles === "admin") {
           const result = await sessioncollection.updateOne(ids, query);
-          res.send(result)
+          res.send(result);
         }
-      })
-      // others router to panding list
-      app.patch("/pedndinglist/:id", verifytoken, roleChecker, async(req, res)=>{
-        const roles = req.user;
-        const ids = {_id : new ObjectId(req.params.id)};
-        const query = {
-          $set : {status : "pending"}
-        }
-        if(roles === "admin"){
-          const result = await sessioncollection.updateOne(ids, query);
-          res.send(result)
-        }
-      })
+      }
+    );
 
-      // delete session
-      app.delete("/deltesession/:id", verifytoken, roleChecker, async(req, res)=>{
+    // delete session
+    app.delete(
+      "/deltesession/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
         const roles = req.user;
-        const ids = {_id : new ObjectId(req.params.id)}
-        if(roles === "admin"){
+        const ids = { _id: new ObjectId(req.params.id) };
+        if (roles === "admin") {
           const result = await sessioncollection.deleteOne(ids);
-          return res.send(result)
-        }else{
-          return;
-        }
-      })
-
-      // find session
-      app.get("/getsession/:id", verifytoken, roleChecker, async(req, res)=>{
-        const roles = req.user;
-        const ids = {_id : new ObjectId(req.params.id)};
-        if(roles === "admin"){
-          const result = await sessioncollection.findOne(ids);
           return res.send(result);
-        }else{
+        } else {
           return;
         }
-      })
+      }
+    );
 
-      // update sesstion
-      app.post("/updateadminsession/:id",verifytoken, roleChecker, async(req,res)=>{
-          const roles = req.user;
-          const ids = {_id : new ObjectId(req.params.id)}
-          const datas = req.body;
-          const options = {
-            $set : datas
-          }
-          if(roles === "admin"){
-            const result = await sessioncollection.updateOne(ids, options);
-            return res.send(result)
-          }else{
-            return;
-          }
-      })
-     
-      app.get("/getallmetrial", verifytoken, roleChecker, async(req ,res)=>{
-          const roles = req.user;
-          if(roles === "admin"){
-            const result = await metarialcollection.find().toArray();
-            return res.send(result);
+    // find session
+    app.get("/getsession/:id", verifytoken, roleChecker, async (req, res) => {
+      const roles = req.user;
+      const ids = { _id: new ObjectId(req.params.id) };
+      if (roles === "admin") {
+        const result = await sessioncollection.findOne(ids);
+        return res.send(result);
+      } else {
+        return;
+      }
+    });
 
-          }else{
-            return;
-          }
-      })
+    // update sesstion
+    app.post(
+      "/updateadminsession/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { _id: new ObjectId(req.params.id) };
+        const datas = req.body;
+        const options = {
+          $set: datas,
+        };
+        if (roles === "admin") {
+          const result = await sessioncollection.updateOne(ids, options);
+          return res.send(result);
+        } else {
+          return;
+        }
+      }
+    );
+
+    app.get("/getallmetrial", verifytoken, roleChecker, async (req, res) => {
+      const roles = req.user;
+      if (roles === "admin") {
+        const result = await metarialcollection.find().toArray();
+        return res.send(result);
+      } else {
+        return;
+      }
+    });
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
@@ -272,11 +312,7 @@ async function run() {
     });
 
     // get session tutor
-    app.get(
-      "/sessionfind/:email",
-      verifytoken,
-      roleChecker,
-      async (req, res) => {
+    app.get("/sessionfind/:email", verifytoken, roleChecker, async (req, res) => {
         const findrule = req.user;
         const emails = req.params.email;
         const searchTutor = {
