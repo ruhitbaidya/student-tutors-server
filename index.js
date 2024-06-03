@@ -191,7 +191,7 @@ async function run() {
           res.send(result)
         }
       })
-
+      // others router to panding list
       app.patch("/pedndinglist/:id", verifytoken, roleChecker, async(req, res)=>{
         const roles = req.user;
         const ids = {_id : new ObjectId(req.params.id)};
@@ -203,6 +203,46 @@ async function run() {
           res.send(result)
         }
       })
+
+      // delete session
+      app.delete("/deltesession/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const ids = {_id : new ObjectId(req.params.id)}
+        if(roles === "admin"){
+          const result = await sessioncollection.deleteOne(ids);
+          return res.send(result)
+        }else{
+          return;
+        }
+      })
+
+      // find session
+      app.get("/getsession/:id", verifytoken, roleChecker, async(req, res)=>{
+        const roles = req.user;
+        const ids = {_id : new ObjectId(req.params.id)};
+        if(roles === "admin"){
+          const result = await sessioncollection.findOne(ids);
+          return res.send(result);
+        }else{
+          return;
+        }
+      })
+
+      app.post("/updateadminsession/:id",verifytoken, roleChecker, async(req,res)=>{
+          const roles = req.user;
+          const ids = {_id : new ObjectId(req.params.id)}
+          const datas = req.body;
+          const options = {
+            $set : datas
+          }
+          if(roles === "admin"){
+            const result = await sessioncollection.updateOne(ids, options);
+            return res.send(result)
+          }else{
+            return;
+          }
+      })
+     
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
