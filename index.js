@@ -39,7 +39,7 @@ async function run() {
     const notecollection = client
       .db("Student_tutorsDB")
       .collection("storeNote");
-      const bookedSessioncollection = client
+    const bookedSessioncollection = client
       .db("Student_tutorsDB")
       .collection("bookedSession");
 
@@ -546,32 +546,47 @@ async function run() {
       }
     );
 
-    //booked session 
-    app.post("/bookedSession", verifytoken, roleChecker, async(req ,res)=>{
+    //booked session
+    app.post("/bookedSession", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
       const sessiondel = req.body;
-      console.log(sessiondel, roles)
-      if(roles === "student"){
-          const result = await bookedSessioncollection.insertOne(sessiondel)
-          return res.send(result)
-      }else{
+      console.log(sessiondel, roles);
+      if (roles === "student") {
+        const result = await bookedSessioncollection.insertOne(sessiondel);
+        return res.send(result);
+      } else {
         return;
       }
-    })
+    });
 
     // view all booked session
-    app.get("/allbooksession/:email", verifytoken, roleChecker, async(req,res)=>{
-      const roles = req.user;
-      const emials = req.params.email;
-      
-        const findsesstion = await bookedSessioncollection.find({myEmail : emials}).toArray();
+    app.get(
+      "/allbooksession/:email",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const emials = req.params.email;
 
-        const allids = findsesstion.map((item)=>{
-            return  {_id : new ObjectId(item.mySessionId)}
-        })
-        const query  = { _id: { $in: allids } }
-        const result = await sessioncollection.find(query).toArray();
-        console.log(result)
+        if (roles === "student") {
+          const findsesstion = await bookedSessioncollection
+            .find({ myEmail: emials })
+            .toArray();
+          const datas = findsesstion.map(
+            (item) => new ObjectId(item.mySessionId)
+          );
+          const query = { _id: { $in: datas } };
+          const result = await sessioncollection.find(query).toArray();
+          res.send(result)
+        }
+      }
+    );
+
+    // get sigan details
+    app.get("/getDetails/:id", async(req, res)=>{
+      const ids = {_id : new ObjectId(req.params.id)}
+      const result = await sessioncollection.findOne(ids);
+      res.send(result)
     })
 
     // -------------------- End Student rotuer -------------------
@@ -595,16 +610,14 @@ async function run() {
 
     app.post("/payment-money", async (req, res) => {
       const { price } = req.body;
-      console.log(price);
       const amount = parseInt(price * 100);
-        const paymentInteregate = await stripe.paymentIntents.create({
-          amount: amount,
-          currency: "usd",
-        });
-        res.send({
-          clientSecrate: paymentInteregate.client_secret,
-        });
-
+      const paymentInteregate = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+      });
+      res.send({
+        clientSecrate: paymentInteregate.client_secret,
+      });
     });
   } finally {
     // Ensures that the client will close when you finish/error
