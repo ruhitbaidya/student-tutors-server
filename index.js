@@ -36,6 +36,12 @@ async function run() {
     const metarialcollection = client
       .db("Student_tutorsDB")
       .collection("metrialUpload");
+    const notecollection = client
+      .db("Student_tutorsDB")
+      .collection("storeNote");
+      const bookedSessioncollection = client
+      .db("Student_tutorsDB")
+      .collection("bookedSession");
 
     // create jwt
     app.post("/jwtCreate", (req, res) => {
@@ -109,8 +115,29 @@ async function run() {
       const result = await sessioncollection.find(ids).limit(6).toArray();
       // const counts = await sessioncollection.find(ids).toArray().length;
       const counts = await sessioncollection.countDocuments(ids);
-      res.send({result, counts});
+      res.send({ result, counts });
     });
+
+    app.get("/getallsession", async (req, res) => {
+      const query = { status: "approve" };
+      const result = await sessioncollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get(
+      "/sessionDetails/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { _id: new ObjectId(req.params.id) };
+        if (roles === "student" || roles === "admin" || roles === "tutor") {
+          const result = await sessioncollection.findOne(ids);
+          res.send(result);
+        }
+      }
+    );
+
     // Test router
     app.get("/", (req, res) => {
       res.send("Hello World!");
@@ -314,7 +341,11 @@ async function run() {
     });
 
     // get session tutor
-    app.get("/sessionfind/:email", verifytoken, roleChecker, async (req, res) => {
+    app.get(
+      "/sessionfind/:email",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
         const findrule = req.user;
         const emails = req.params.email;
         const searchTutor = {
@@ -436,6 +467,115 @@ async function run() {
 
     // -------------------- end tutor rotuer -------------------
 
+    // -------------------- Start Student rotuer -------------------
+
+    // crete note for student
+    app.post("/createNote", verifytoken, roleChecker, async (req, res) => {
+      const roles = req.user;
+      const note = req.body;
+      console.log(req.body);
+      if (roles === "student") {
+        const result = await notecollection.insertOne(note);
+        return res.send(result);
+      }
+    });
+
+    // get all personal note student
+    app.get(
+      "/getPersonalNote/:email",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const emails = req.params.email;
+        if (roles === "student") {
+          const result = await notecollection
+            .find({ studentEmail: emails })
+            .toArray();
+          return res.send(result);
+        } else {
+          return;
+        }
+      }
+    );
+
+    // getpersonal signal note
+    app.get(
+      "/getPersonalNoteSingl/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { _id: new ObjectId(req.params.id) };
+        if (roles === "student") {
+          const result = await notecollection.findOne(ids);
+          return res.send(result);
+        } else {
+          return;
+        }
+      }
+    );
+
+    // update note
+    app.patch("/updateNote/:id", verifytoken, roleChecker, async (req, res) => {
+      const roles = req.user;
+      const ids = { _id: new ObjectId(req.params.id) };
+      const options = { $set: req.body };
+      if (roles === "student") {
+        const result = await notecollection.updateOne(ids, options);
+        return res.send(result);
+      } else {
+        return;
+      }
+    });
+
+    // note delete
+    app.delete(
+      "/deleteNote/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { _id: new ObjectId(req.params.id) };
+        if (roles === "student") {
+          const result = await notecollection.deleteOne(ids);
+          return res.send(result);
+        } else {
+          return;
+        }
+      }
+    );
+
+    //booked session 
+    app.post("/bookedSession", verifytoken, roleChecker, async(req ,res)=>{
+      const roles = req.user;
+      const sessiondel = req.body;
+      console.log(sessiondel, roles)
+      if(roles === "student"){
+          const result = await bookedSessioncollection.insertOne(sessiondel)
+          return res.send(result)
+      }else{
+        return;
+      }
+    })
+
+    // view all booked session
+    app.get("/allbooksession/:email", verifytoken, roleChecker, async(req,res)=>{
+      const roles = req.user;
+      const emials = req.params.email;
+      
+        const findsesstion = await bookedSessioncollection.find({myEmail : emials}).toArray();
+
+        const allids = findsesstion.map((item)=>{
+            return  {_id : new ObjectId(item.mySessionId)}
+        })
+        const query  = { _id: { $in: allids } }
+        const result = await sessioncollection.find(query).toArray();
+        console.log(result)
+    })
+
+    // -------------------- End Student rotuer -------------------
+
     //set user role
     app.post("/user-role-set", async (req, res) => {
       const user = req.body;
@@ -452,20 +592,19 @@ async function run() {
     });
 
     // payment Router
-    app.post("/create-payment-intent", async (req, res) => {
-      const price = req.body;
-      const money = parseInt(price.items * 100);
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: money,
-        currency: "usd",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-      });
 
-      res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
+    app.post("/payment-money", async (req, res) => {
+      const { price } = req.body;
+      console.log(price);
+      const amount = parseInt(price * 100);
+        const paymentInteregate = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+        });
+        res.send({
+          clientSecrate: paymentInteregate.client_secret,
+        });
+
     });
   } finally {
     // Ensures that the client will close when you finish/error
