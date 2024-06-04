@@ -107,7 +107,9 @@ async function run() {
     app.get("/getForeHome", async (req, res) => {
       const ids = { status: "approve" };
       const result = await sessioncollection.find(ids).limit(6).toArray();
-      res.send(result);
+      // const counts = await sessioncollection.find(ids).toArray().length;
+      const counts = await sessioncollection.countDocuments(ids);
+      res.send({result, counts});
     });
     // Test router
     app.get("/", (req, res) => {
@@ -192,11 +194,11 @@ async function run() {
       roleChecker,
       async (req, res) => {
         const roles = req.user;
-        const text = req.body;
+        const text = req.body.price;
+        console.log(text);
         const ids = { _id: new ObjectId(req.params.id) };
         const query = {
-          $set: { registerFree: text.price },
-          $set: { status: "approve" },
+          $set: { status: "approve", registerFree: text },
         };
         if (roles === "admin") {
           const result = await sessioncollection.updateOne(ids, query);
