@@ -42,7 +42,9 @@ async function run() {
     const bookedSessioncollection = client
       .db("Student_tutorsDB")
       .collection("bookedSession");
-
+      const studentReviewCollection = client
+      .db("Student_tutorsDB")
+      .collection("allreview");
     // create jwt
     app.post("/jwtCreate", (req, res) => {
       const email = req.body;
@@ -587,6 +589,18 @@ async function run() {
       const ids = {_id : new ObjectId(req.params.id)}
       const result = await sessioncollection.findOne(ids);
       res.send(result)
+    })
+
+
+    //student review this page
+    app.post("/reviewall", verifytoken, roleChecker, async(req ,res)=>{
+      const roles = req.user;
+      const review = req.body;
+      if(roles === "student"){
+        const result = await studentReviewCollection.insertOne(review)
+        res.send(result)
+      }
+      console.log(roles, review)
     })
 
     // -------------------- End Student rotuer -------------------
