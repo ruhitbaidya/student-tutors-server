@@ -45,6 +45,9 @@ async function run() {
       const studentReviewCollection = client
       .db("Student_tutorsDB")
       .collection("allreview");
+      const rejectFeedbackcollection = client
+      .db("Student_tutorsDB")
+      .collection("rejectFeedback");
     // create jwt
     app.post("/jwtCreate", (req, res) => {
       const email = req.body;
@@ -325,6 +328,17 @@ async function run() {
         return;
       }
     });
+
+    app.post("/rejectSessionFeedback", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      const feedback = req.body;
+      if(roles === "admin"){
+        const result = await rejectFeedbackcollection.insertOne(feedback);
+        res.send(result)
+      }else{
+        return;
+      }
+    })
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
@@ -603,20 +617,31 @@ async function run() {
       console.log(roles, review)
     })
 
+    // get all metrials
+    app.get("/getMetrialsAll/:id", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      const ids = {sessionId : req.params.id}
+      if(roles === "student"){
+        const result = await metarialcollection.find(ids).toArray();
+        res.send(result)
+      }
+    })
+
     // -------------------- End Student rotuer -------------------
 
     //set user role
     app.post("/user-role-set", async (req, res) => {
       const user = req.body;
-
+      // console.log(req.body)
       const fins = { "user.email": user.email };
+      console.log(user)
       const existUser = await usercollection.findOne(fins);
 
       if (existUser) {
         return res.send({ message: "This User Already Exist" }).status(405);
       } else {
-        const result = await usercollection.insertOne(user);
-        res.send(result);
+        const result = await usercollection.insertOne({user});
+        return res.send(result);
       }
     });
 
