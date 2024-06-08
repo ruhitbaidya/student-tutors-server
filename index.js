@@ -443,14 +443,25 @@ async function run() {
       async (req, res) => {
         const roles = req.user;
         const ids = { _id: new ObjectId(req.params.id) };
+        
         const setData = { $set: { status: "pending" } };
         if (roles === "tutor") {
           const result = await sessioncollection.updateOne(ids, setData);
+          // const delSession = await rejectFeedbackcollection.deleteOne(delfec)
           res.send(result);
         }
       }
     );
 
+    // delete session by tutors
+    app.delete("/deleteFeedback/:id", verifytoken, roleChecker, async(req, res)=>{
+      const roles = req.user;
+      const ids = {rejectSession : req.params.id };
+      if(roles === "tutor"){
+        const result = await rejectFeedbackcollection.deleteOne(ids);
+        res.send(result)
+      }
+    })
     //only tutor approve session view this link
     app.get(
       "/TutorOnlyApprove/:email",
@@ -480,6 +491,16 @@ async function run() {
         return res.send({ message: "unauthorize user" });
       }
     });
+
+
+    // show feedback
+
+    app.get("/showfeedback/:id", async(req, res)=>{
+      const ids = {rejectSession : req.params.id}
+        const result = await rejectFeedbackcollection.findOne(ids);
+        console.log(result)
+        res.send(result)
+    })
 
     // -------------------- end tutor rotuer -------------------
 
