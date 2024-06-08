@@ -147,6 +147,11 @@ async function run() {
       }
     );
 
+    app.get('/getallreview/:id', verifytoken, async(req, res)=>{
+          const ids = {reviewSessionId : req.params.id}
+          const result = await studentReviewCollection.find(ids).toArray();
+          res.send(result)
+    })
     // get all tutors
     app.get("/getAllTutors", async(req,res)=>{
       const ids = {"user.role" : "tutor"}
