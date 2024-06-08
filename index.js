@@ -123,10 +123,14 @@ async function run() {
       res.send({ result, counts });
     });
 
-    app.get("/getallsession", async (req, res) => {
+    app.get("/getallsession/:num", async (req, res) => {
       const query = { status: "approve" };
-      const result = await sessioncollection.find(query).toArray();
-      res.send(result);
+      const numb = req.params.num;
+      console.log(numb)
+      const skipItem = numb * 6;
+      const result = await sessioncollection.find(query).skip(skipItem).limit(6).toArray();
+      const documentCount = await sessioncollection.countDocuments(query);
+      res.send({documentCount, result});
     });
 
     app.get(
@@ -142,6 +146,13 @@ async function run() {
         }
       }
     );
+
+    // get all tutors
+    app.get("/getAllTutors", async(req,res)=>{
+      const ids = {"user.role" : "tutor"}
+      const result = await usercollection.find(ids).toArray();
+      res.send(result);
+    })
 
     // Test router
     app.get("/", (req, res) => {
