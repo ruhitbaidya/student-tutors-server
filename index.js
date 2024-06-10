@@ -166,11 +166,15 @@ async function run() {
     // -------------------- start admin rotuer -------------------
 
     // all user get
-    app.get("/getAllUser", verifytoken, roleChecker, async (req, res) => {
+    app.get("/getAllUser/:page", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
+      const page = req.params.page;
+      const skipPage = page * 5;
+      console.log(page)
       if (roles === "admin") {
-        const result = await usercollection.find().toArray();
-        return res.send(result);
+        const result = await usercollection.find().skip(skipPage).limit(5).toArray();
+        const counts = await usercollection.countDocuments();
+        return res.send({result, counts});
       } else {
         return;
       }
@@ -212,7 +216,7 @@ async function run() {
         };
         if (roles === "admin") {
           const result = await usercollection.find(query).toArray();
-          return res.send(result);
+          return res.send({result});
         } else {
           return;
         }
