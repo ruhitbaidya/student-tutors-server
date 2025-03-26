@@ -48,6 +48,9 @@ async function run() {
       const rejectFeedbackcollection = client
       .db("Student_tutorsDB")
       .collection("rejectFeedback");
+      const blogCollection = client
+      .db("Student_tutorsDB")
+      .collection("blog");
     // create jwt
     app.post("/jwtCreate", (req, res) => {
       const email = req.body;
@@ -135,19 +138,16 @@ async function run() {
 
     app.get(
       "/sessionDetails/:id",
-      verifytoken,
-      roleChecker,
       async (req, res) => {
-        const roles = req.user;
+        console.log(req.params.id)
         const ids = { _id: new ObjectId(req.params.id) };
-        if (roles === "student" || roles === "admin" || roles === "tutor") {
           const result = await sessioncollection.findOne(ids);
-          res.send(result);
-        }
+          console.log(result)
+          res.json(result);
       }
     );
 
-    app.get('/getallreview/:id', verifytoken, async(req, res)=>{
+    app.get('/getallreview/:id', async(req, res)=>{
           const ids = {reviewSessionId : req.params.id}
           const result = await studentReviewCollection.find(ids).toArray();
           res.send(result)
@@ -670,6 +670,31 @@ async function run() {
 
     // -------------------- End Student rotuer -------------------
 
+
+       // -------------------- Start Blog rotuer -------------------
+
+    app.post("/create-blog", verifytoken, roleChecker, async(req, res)=>{
+      try{
+        const roles = req.user;
+      if(roles === "admin"){
+        const result = await blogCollection.insertOne(req.body);
+        res.send(result)
+      }
+      }catch(err){
+        console.log(err)
+      }
+    })
+
+    app.post("/get-blog", async(req, res)=>{
+      try{
+        const result = await blogCollection.find();
+        res.send(result)
+      }
+      catch(err){
+        console.log(err)
+      }
+  })
+       // -------------------- End Blog rotuer -------------------
     //set user role
     app.post("/user-role-set", async (req, res) => {
       const user = req.body;
