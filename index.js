@@ -23,11 +23,11 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.connect();
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
 
     // user collection
     const usercollection = client.db("Student_tutorsDB").collection("alluser");
@@ -129,35 +129,29 @@ async function run() {
     });
 
     app.get("/getallsession", async (req, res) => {
-      try {
-        let query = { status: "approve" };
-        const numb = parseInt(req?.query?.page);
-        const texts = req.query.text;
-        const skipItem = numb * 6;
-        if (texts.trim().length > 0 && texts !== "undefined") {
-          query.$or = [
-            { sessionTitle: { $regex: texts.trim(), $options: "i" } },
-            { sessionDescription: { $regex: texts.trim(), $options: "i" } },
-          ];
-        }
-        const result = await sessioncollection
-          .find(query)
-          .skip(skipItem)
-          .limit(6)
-          .toArray();
-        const documentCount = await sessioncollection.countDocuments(query);
-
-        return res.send({ documentCount, result });
-      } catch (err) {
-        console.log(err);
+      let query = { status: "approve" };
+      const numb = parseInt(req?.query?.page);
+      const texts = req.query.text;
+      const skipItem = numb * 6;
+      if (texts.trim().length > 0 && texts !== "undefined") {
+        query.$or = [
+          { sessionTitle: { $regex: texts.trim(), $options: "i" } },
+          { sessionDescription: { $regex: texts.trim(), $options: "i" } },
+        ];
       }
+      const result = await sessioncollection
+        .find(query)
+        .skip(skipItem)
+        .limit(6)
+        .toArray();
+      const documentCount = await sessioncollection.countDocuments(query);
+
+      return res.send({ documentCount, result });
     });
 
     app.get("/sessionDetails/:id", async (req, res) => {
-      console.log(req.params.id);
       const ids = { _id: new ObjectId(req.params.id) };
       const result = await sessioncollection.findOne(ids);
-      console.log(result);
       res.json(result);
     });
 
@@ -166,6 +160,30 @@ async function run() {
       const result = await studentReviewCollection.find(ids).toArray();
       res.send(result);
     });
+
+    // app.get("/getallreviewPublic", async (req, res) => {
+    //   try {
+    //     const result = await studentReviewCollection
+    //       .aggregate([
+    //         {
+    //           $lookup: {
+    //             from: "reviewSessions", // The collection to join with
+    //             localField: "reviewSessionId", // Field in studentReviewCollection
+    //             foreignField: "_id", // Field in reviewSessions
+    //             as: "sessionDetails", // Name of the output field
+    //           },
+    //         },
+    //         { $unwind: "$sessionDetails" }, // Flatten the sessionDetails array
+    //       ])
+    //       .toArray();
+
+    //     res.send(result);
+    //   } catch (error) {
+    //     console.error("Error fetching reviews:", error);
+    //     res.status(500).send({ message: "Internal Server Error" });
+    //   }
+    // });
+
     // get all tutors
     app.get("/getAllTutors", async (req, res) => {
       const ids = { "user.role": "tutor" };
@@ -184,7 +202,6 @@ async function run() {
       const roles = req.user;
       const page = req.params.page;
       const skipPage = page * 5;
-      console.log(page);
       if (roles === "admin") {
         const result = await usercollection
           .find()
@@ -225,7 +242,6 @@ async function run() {
       roleChecker,
       async (req, res) => {
         const roles = req.user;
-        console.log(req.params.searchKeys);
         const query = {
           $or: [
             { "user.email": { $regex: req.params.searchKeys, $options: "i" } },
@@ -248,7 +264,6 @@ async function run() {
       roleChecker,
       async (req, res) => {
         const roles = req.user;
-        console.log();
         const query = { status: req.params.statusText };
         if (roles === "admin") {
           const result = await sessioncollection.find(query).toArray();
@@ -265,7 +280,7 @@ async function run() {
       async (req, res) => {
         const roles = req.user;
         const text = req.body.price;
-        console.log(text);
+
         const ids = { _id: new ObjectId(req.params.id) };
         const query = {
           $set: { status: "approve", registerFree: text },
@@ -387,8 +402,6 @@ async function run() {
     // -------------------- start tutor rotuer -------------------
     // create session router
     app.post("/createSession", verifytoken, roleChecker, async (req, res) => {
-      // console.log(req.body)
-      // console.log(req.user)
       const data = req.body;
       const role = req.user;
       if (role === "tutor") {
@@ -413,7 +426,7 @@ async function run() {
         };
         if (findrule === "tutor") {
           const result = await sessioncollection.find(searchTutor).toArray();
-          console.log(result);
+
           res.send(result);
         } else {
           return res.send({ message: "Invalid User" });
@@ -442,7 +455,7 @@ async function run() {
         const roles = req.user;
         const ids = req.params.id;
         const query = { _id: new ObjectId(ids) };
-        console.log(roles, query);
+
         if (roles === "tutor" || roles === "admin") {
           const result = await metarialcollection.deleteOne(query);
           return res.send(result);
@@ -545,7 +558,7 @@ async function run() {
     app.get("/showfeedback/:id", async (req, res) => {
       const ids = { rejectSession: req.params.id };
       const result = await rejectFeedbackcollection.findOne(ids);
-      console.log(result);
+
       res.send(result);
     });
 
@@ -557,7 +570,7 @@ async function run() {
     app.post("/createNote", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
       const note = req.body;
-      console.log(req.body);
+
       if (roles === "student") {
         const result = await notecollection.insertOne(note);
         return res.send(result);
@@ -634,7 +647,7 @@ async function run() {
     app.post("/bookedSession", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
       const sessiondel = req.body;
-      console.log(sessiondel, roles);
+
       if (roles === "student") {
         const result = await bookedSessioncollection.insertOne(sessiondel);
         return res.send(result);
@@ -681,7 +694,6 @@ async function run() {
         const result = await studentReviewCollection.insertOne(review);
         res.send(result);
       }
-      console.log(roles, review);
     });
 
     // get all metrials
@@ -704,37 +716,25 @@ async function run() {
     // -------------------- Start Blog rotuer -------------------
 
     app.post("/create-blog", verifytoken, roleChecker, async (req, res) => {
-      try {
-        const roles = req.user;
-        if (roles === "admin") {
-          const result = await blogCollection.insertOne({
-            ...req.body,
-            createAt: new Date(),
-          });
-          res.send(result);
-        }
-      } catch (err) {
-        console.log(err);
+      const roles = req.user;
+      if (roles === "admin") {
+        const result = await blogCollection.insertOne({
+          ...req.body,
+          createAt: new Date(),
+        });
+        res.send(result);
       }
     });
 
     app.get("/get-blog", async (req, res) => {
-      try {
-        const result = await blogCollection.find().toArray();
-        res.send(result);
-      } catch (err) {
-        console.log(err);
-      }
+      const result = await blogCollection.find().toArray();
+      res.send(result);
     });
 
     app.get("/get-singal-blog/:id", async (req, res) => {
-      try {
-        const ids = { _id: new ObjectId(req.params.id) };
-        const result = await blogCollection.findOne(ids);
-        res.send(result);
-      } catch (err) {
-        console.log(err);
-      }
+      const ids = { _id: new ObjectId(req.params.id) };
+      const result = await blogCollection.findOne(ids);
+      res.send(result);
     });
 
     app.delete(
@@ -742,17 +742,15 @@ async function run() {
       verifytoken,
       roleChecker,
       async (req, res) => {
-        try {
-          const ids = { _id: new ObjectId(req.params.id) };
-          const roles = req.user;
-          console.log(ids, roles);
-          if (roles === "admin") {
-            const result = await blogCollection.deleteOne(ids);
-            res.send(result);
-          }
-        } catch (err) {
-          console.log(err);
+        const ids = { _id: new ObjectId(req.params.id) };
+        const roles = req.user;
+
+        if (roles === "admin") {
+          const result = await blogCollection.deleteOne(ids);
+          res.send(result);
         }
+
+        console.log(err);
       }
     );
     // -------------------- End Blog rotuer -------------------
@@ -760,45 +758,40 @@ async function run() {
     // -------------------- start subscribe rotuer -------------------
 
     app.post("/subscribe", async (req, res) => {
-      try {
-        const { name, email } = req.body;
-        if ((name === "", email === "")) {
-          return res.send({ message: "Your Send Information Not Complate" });
-        }
-        const result = await subscribeCollection.insertOne({ name, email });
-        if (result) {
-          mailSender(name, email);
-        }
-        return res.send({ message: "Subscribe Complate", result });
-      } catch (err) {
-        console.log(err);
+      const { name, email } = req.body;
+      if ((name === "", email === "")) {
+        return res.send({ message: "Your Send Information Not Complate" });
       }
+      const result = await subscribeCollection.insertOne({ name, email });
+      if (result) {
+        mailSender(name, email);
+      }
+      return res.send({ message: "Subscribe Complate", result });
+
+      console.log(err);
     });
 
     // -------------------- End subscribe rotuer -------------------
     // -------------------- Start Chart  rotuer -------------------
 
     app.get("/admin-chart", verifytoken, roleChecker, async (req, res) => {
-      try {
-        const roles = req.user;
-        if (roles === "admin") {
-          const studentCount = await usercollection.countDocuments({
-            "user.role": { $regex: /^student$/i },
-          });
-          const tutorCount = await usercollection.countDocuments({
-            "user.role": { $regex: /^tutor$/i },
-          });
-          const courseCount = await sessioncollection.countDocuments({});
-          res.send({
-            student: studentCount,
-            tutor: tutorCount,
-            cource: courseCount,
-          });
-        } else {
-          res.send({ success: false });
-        }
-      } catch (err) {
-        console.log(err);
+      const roles = req.user;
+
+      if (roles === "admin") {
+        const studentCount = await usercollection.countDocuments({
+          "user.role": { $regex: /^student$/i },
+        });
+        const tutorCount = await usercollection.countDocuments({
+          "user.role": { $regex: /^tutor$/i },
+        });
+        const courseCount = await sessioncollection.countDocuments({});
+        res.send({
+          student: studentCount,
+          tutor: tutorCount,
+          cource: courseCount,
+        });
+      } else {
+        res.send({ success: false });
       }
     });
 
@@ -806,9 +799,9 @@ async function run() {
     //set user role
     app.post("/user-role-set", async (req, res) => {
       const user = req.body;
-      // console.log(req.body)
+
       const fins = { "user.email": user.email };
-      console.log(user);
+
       const existUser = await usercollection.findOne(fins);
 
       if (existUser) {
