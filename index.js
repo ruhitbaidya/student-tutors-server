@@ -4,6 +4,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.PAYMENT_SECRATE);
 const jwt = require("jsonwebtoken");
+const { mailSender } = require("./messageSender");
 const app = express();
 
 app.use(cors());
@@ -42,15 +43,16 @@ async function run() {
     const bookedSessioncollection = client
       .db("Student_tutorsDB")
       .collection("bookedSession");
-      const studentReviewCollection = client
+    const studentReviewCollection = client
       .db("Student_tutorsDB")
       .collection("allreview");
-      const rejectFeedbackcollection = client
+    const rejectFeedbackcollection = client
       .db("Student_tutorsDB")
       .collection("rejectFeedback");
-      const blogCollection = client
+    const blogCollection = client.db("Student_tutorsDB").collection("blog");
+    const subscribeCollection = client
       .db("Student_tutorsDB")
-      .collection("blog");
+      .collection("subscribe");
     // create jwt
     app.post("/jwtCreate", (req, res) => {
       const email = req.body;
@@ -106,13 +108,13 @@ async function run() {
         const roles = await usercollection.findOne(finds);
         if (roles) {
           if (roles.user.role === "admin") {
-            return res.send({ roles: "admin" });
+            return res.send({ ...roles, roles: "admin" });
           }
           if (roles.user.role === "tutor") {
-            return res.send({ roles: "tutor" });
+            return res.send({ ...roles, roles: "tutor" });
           }
           if (roles.user.role === "student") {
-            return res.send({ roles: "student" });
+            return res.send({ ...roles, roles: "student" });
           }
         }
       }
@@ -126,38 +128,50 @@ async function run() {
       res.send({ result, counts });
     });
 
-    app.get("/getallsession/:num", async (req, res) => {
-      const query = { status: "approve" };
-      const numb = req.params.num;
-      console.log(numb)
-      const skipItem = numb * 6;
-      const result = await sessioncollection.find(query).skip(skipItem).limit(6).toArray();
-      const documentCount = await sessioncollection.countDocuments(query);
-      res.send({documentCount, result});
+    app.get("/getallsession", async (req, res) => {
+      try {
+        let query = { status: "approve" };
+        const numb = parseInt(req?.query?.page);
+        const texts = req.query.text;
+        const skipItem = numb * 6;
+        if (texts.trim().length > 0 && texts !== "undefined") {
+          query.$or = [
+            { sessionTitle: { $regex: texts.trim(), $options: "i" } },
+            { sessionDescription: { $regex: texts.trim(), $options: "i" } },
+          ];
+        }
+        const result = await sessioncollection
+          .find(query)
+          .skip(skipItem)
+          .limit(6)
+          .toArray();
+        const documentCount = await sessioncollection.countDocuments(query);
+
+        return res.send({ documentCount, result });
+      } catch (err) {
+        console.log(err);
+      }
     });
 
-    app.get(
-      "/sessionDetails/:id",
-      async (req, res) => {
-        console.log(req.params.id)
-        const ids = { _id: new ObjectId(req.params.id) };
-          const result = await sessioncollection.findOne(ids);
-          console.log(result)
-          res.json(result);
-      }
-    );
+    app.get("/sessionDetails/:id", async (req, res) => {
+      console.log(req.params.id);
+      const ids = { _id: new ObjectId(req.params.id) };
+      const result = await sessioncollection.findOne(ids);
+      console.log(result);
+      res.json(result);
+    });
 
-    app.get('/getallreview/:id', async(req, res)=>{
-          const ids = {reviewSessionId : req.params.id}
-          const result = await studentReviewCollection.find(ids).toArray();
-          res.send(result)
-    })
+    app.get("/getallreview/:id", async (req, res) => {
+      const ids = { reviewSessionId: req.params.id };
+      const result = await studentReviewCollection.find(ids).toArray();
+      res.send(result);
+    });
     // get all tutors
-    app.get("/getAllTutors", async(req,res)=>{
-      const ids = {"user.role" : "tutor"}
+    app.get("/getAllTutors", async (req, res) => {
+      const ids = { "user.role": "tutor" };
       const result = await usercollection.find(ids).toArray();
       res.send(result);
-    })
+    });
 
     // Test router
     app.get("/", (req, res) => {
@@ -170,11 +184,15 @@ async function run() {
       const roles = req.user;
       const page = req.params.page;
       const skipPage = page * 5;
-      console.log(page)
+      console.log(page);
       if (roles === "admin") {
-        const result = await usercollection.find().skip(skipPage).limit(5).toArray();
+        const result = await usercollection
+          .find()
+          .skip(skipPage)
+          .limit(5)
+          .toArray();
         const counts = await usercollection.countDocuments();
-        return res.send({result, counts});
+        return res.send({ result, counts });
       } else {
         return;
       }
@@ -216,7 +234,7 @@ async function run() {
         };
         if (roles === "admin") {
           const result = await usercollection.find(query).toArray();
-          return res.send({result});
+          return res.send({ result });
         } else {
           return;
         }
@@ -349,16 +367,21 @@ async function run() {
       }
     });
 
-    app.post("/rejectSessionFeedback", verifytoken, roleChecker, async(req, res)=>{
-      const roles = req.user;
-      const feedback = req.body;
-      if(roles === "admin"){
-        const result = await rejectFeedbackcollection.insertOne(feedback);
-        res.send(result)
-      }else{
-        return;
+    app.post(
+      "/rejectSessionFeedback",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const feedback = req.body;
+        if (roles === "admin") {
+          const result = await rejectFeedbackcollection.insertOne(feedback);
+          res.send(result);
+        } else {
+          return;
+        }
       }
-    })
+    );
     // -------------------- end admin rotuer -------------------
 
     // -------------------- start tutor rotuer -------------------
@@ -463,7 +486,7 @@ async function run() {
       async (req, res) => {
         const roles = req.user;
         const ids = { _id: new ObjectId(req.params.id) };
-        
+
         const setData = { $set: { status: "pending" } };
         if (roles === "tutor") {
           const result = await sessioncollection.updateOne(ids, setData);
@@ -474,14 +497,19 @@ async function run() {
     );
 
     // delete session by tutors
-    app.delete("/deleteFeedback/:id", verifytoken, roleChecker, async(req, res)=>{
-      const roles = req.user;
-      const ids = {rejectSession : req.params.id };
-      if(roles === "tutor"){
-        const result = await rejectFeedbackcollection.deleteOne(ids);
-        res.send(result)
+    app.delete(
+      "/deleteFeedback/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { rejectSession: req.params.id };
+        if (roles === "tutor") {
+          const result = await rejectFeedbackcollection.deleteOne(ids);
+          res.send(result);
+        }
       }
-    })
+    );
     //only tutor approve session view this link
     app.get(
       "/TutorOnlyApprove/:email",
@@ -512,15 +540,14 @@ async function run() {
       }
     });
 
-
     // show feedback
 
-    app.get("/showfeedback/:id", async(req, res)=>{
-      const ids = {rejectSession : req.params.id}
-        const result = await rejectFeedbackcollection.findOne(ids);
-        console.log(result)
-        res.send(result)
-    })
+    app.get("/showfeedback/:id", async (req, res) => {
+      const ids = { rejectSession: req.params.id };
+      const result = await rejectFeedbackcollection.findOne(ids);
+      console.log(result);
+      res.send(result);
+    });
 
     // -------------------- end tutor rotuer -------------------
 
@@ -634,79 +661,160 @@ async function run() {
           );
           const query = { _id: { $in: datas } };
           const result = await sessioncollection.find(query).toArray();
-          res.send(result)
+          res.send(result);
         }
       }
     );
 
     // get sigan details
-    app.get("/getDetails/:id", async(req, res)=>{
-      const ids = {_id : new ObjectId(req.params.id)}
+    app.get("/getDetails/:id", async (req, res) => {
+      const ids = { _id: new ObjectId(req.params.id) };
       const result = await sessioncollection.findOne(ids);
-      res.send(result)
-    })
-
+      res.send(result);
+    });
 
     //student review this page
-    app.post("/reviewall", verifytoken, roleChecker, async(req ,res)=>{
+    app.post("/reviewall", verifytoken, roleChecker, async (req, res) => {
       const roles = req.user;
       const review = req.body;
-      if(roles === "student"){
-        const result = await studentReviewCollection.insertOne(review)
-        res.send(result)
+      if (roles === "student") {
+        const result = await studentReviewCollection.insertOne(review);
+        res.send(result);
       }
-      console.log(roles, review)
-    })
+      console.log(roles, review);
+    });
 
     // get all metrials
-    app.get("/getMetrialsAll/:id", verifytoken, roleChecker, async(req, res)=>{
-      const roles = req.user;
-      const ids = {sessionId : req.params.id}
-      if(roles === "student"){
-        const result = await metarialcollection.find(ids).toArray();
-        res.send(result)
+    app.get(
+      "/getMetrialsAll/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        const roles = req.user;
+        const ids = { sessionId: req.params.id };
+        if (roles === "student") {
+          const result = await metarialcollection.find(ids).toArray();
+          res.send(result);
+        }
       }
-    })
+    );
 
     // -------------------- End Student rotuer -------------------
 
+    // -------------------- Start Blog rotuer -------------------
 
-       // -------------------- Start Blog rotuer -------------------
-
-    app.post("/create-blog", verifytoken, roleChecker, async(req, res)=>{
-      try{
+    app.post("/create-blog", verifytoken, roleChecker, async (req, res) => {
+      try {
         const roles = req.user;
-      if(roles === "admin"){
-        const result = await blogCollection.insertOne(req.body);
-        res.send(result)
+        if (roles === "admin") {
+          const result = await blogCollection.insertOne({
+            ...req.body,
+            createAt: new Date(),
+          });
+          res.send(result);
+        }
+      } catch (err) {
+        console.log(err);
       }
-      }catch(err){
-        console.log(err)
-      }
-    })
+    });
 
-    app.post("/get-blog", async(req, res)=>{
-      try{
-        const result = await blogCollection.find();
-        res.send(result)
+    app.get("/get-blog", async (req, res) => {
+      try {
+        const result = await blogCollection.find().toArray();
+        res.send(result);
+      } catch (err) {
+        console.log(err);
       }
-      catch(err){
-        console.log(err)
+    });
+
+    app.get("/get-singal-blog/:id", async (req, res) => {
+      try {
+        const ids = { _id: new ObjectId(req.params.id) };
+        const result = await blogCollection.findOne(ids);
+        res.send(result);
+      } catch (err) {
+        console.log(err);
       }
-  })
-       // -------------------- End Blog rotuer -------------------
+    });
+
+    app.delete(
+      "/delete-singal-blog/:id",
+      verifytoken,
+      roleChecker,
+      async (req, res) => {
+        try {
+          const ids = { _id: new ObjectId(req.params.id) };
+          const roles = req.user;
+          console.log(ids, roles);
+          if (roles === "admin") {
+            const result = await blogCollection.deleteOne(ids);
+            res.send(result);
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    );
+    // -------------------- End Blog rotuer -------------------
+
+    // -------------------- start subscribe rotuer -------------------
+
+    app.post("/subscribe", async (req, res) => {
+      try {
+        const { name, email } = req.body;
+        if ((name === "", email === "")) {
+          return res.send({ message: "Your Send Information Not Complate" });
+        }
+        const result = await subscribeCollection.insertOne({ name, email });
+        if (result) {
+          mailSender(name, email);
+        }
+        return res.send({ message: "Subscribe Complate", result });
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    // -------------------- End subscribe rotuer -------------------
+    // -------------------- Start Chart  rotuer -------------------
+
+    app.get("/admin-chart", verifytoken, roleChecker, async (req, res) => {
+      try {
+        const roles = req.user;
+        if (roles === "admin") {
+          const studentCount = await usercollection.countDocuments({
+            "user.role": { $regex: /^student$/i },
+          });
+          const tutorCount = await usercollection.countDocuments({
+            "user.role": { $regex: /^tutor$/i },
+          });
+          const courseCount = await sessioncollection.countDocuments({});
+          res.send({
+            student: studentCount,
+            tutor: tutorCount,
+            cource: courseCount,
+          });
+        } else {
+          res.send({ success: false });
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    // -------------------- End Chart rotuer -------------------
     //set user role
     app.post("/user-role-set", async (req, res) => {
       const user = req.body;
       // console.log(req.body)
       const fins = { "user.email": user.email };
-      console.log(user)
+      console.log(user);
       const existUser = await usercollection.findOne(fins);
 
       if (existUser) {
         return res.send({ message: "This User Already Exist" }).status(405);
       } else {
-        const result = await usercollection.insertOne({user});
+        const result = await usercollection.insertOne({ user });
         return res.send(result);
       }
     });
